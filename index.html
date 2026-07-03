@@ -1,0 +1,15 @@
+
+<!DOCTYPE html>
+<html>
+<head><title>poema1</title>
+<script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+</head>
+<body>
+<a-scene mindar-image="imageTargetSrc: https://github.com/inge7777/libro1modelo3d/blob/main/libromaria222/pagina04.mind" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    <a-assets><a-asset-item id="m0" src="https://github.com/instructorandradedcc/propuesta-AR/blob/main/asetss/modelss/mano-iz-protesis.glb"></a-asset-item><a-asset-item id="m1" src="https://github.com/instructorandradedcc/propuesta-AR/blob/main/asetss/modelss/Robonaut-2.glb"></a-asset-item><a-asset-item id="m2" src="https://github.com/instructorandradedcc/propuesta-AR/blob/main/asetss/modelss/super-nova-o-proteina.glb"></a-asset-item><a-asset-item id="m3" src="https://github.com/instructorandradedcc/propuesta-AR/blob/main/asetss/modelss/corazon.glb"></a-asset-item></a-assets>
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <a-entity mindar-image-target="targetIndex: 0"><a-gltf-model src="#m0"></a-gltf-model></a-entity><a-entity mindar-image-target="targetIndex: 1"><a-gltf-model src="#m1"></a-gltf-model></a-entity><a-entity mindar-image-target="targetIndex: 2"><a-gltf-model src="#m2"></a-gltf-model></a-entity><a-entity mindar-image-target="targetIndex: 3"><a-gltf-model src="#m3"></a-gltf-model></a-entity>
+</a-scene>
+</body>
+</html>
