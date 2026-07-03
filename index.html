@@ -1,44 +1,64 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>poemas3</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>libro5poemas</title>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
         body { margin: 0; overflow: hidden; }
-        #start-btn { position: absolute; z-index: 999; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px 40px; background: #1e3a8a; color: white; border: none; border-radius: 10px; font-size: 18px; cursor: pointer; }
+        #loader-overlay { position: fixed; inset: 0; background: #0f172a; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; color: white; padding: 20px; }
+        #progress-bar { width: 100%; max-width: 400px; height: 20px; background: #334155; border-radius: 10px; overflow: hidden; margin: 20px 0; }
+        #progress-fill { width: 0%; height: 100%; background: #22c55e; transition: width 0.3s ease; }
+        #start-btn { display: none; padding: 15px 30px; background: #2563eb; border: none; border-radius: 10px; color: white; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
-    <button id="start-btn">Iniciar Experiencia AR</button>
-    <a-scene id="scene" mindar-image="imageTargetSrc: https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/libromaria222/portada1.mind" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" style="display:none;">
+    <div id="loader-overlay">
+        <h2 class="text-xl mb-4">Verificando Assets</h2>
+        <div id="progress-bar"><div id="progress-fill"></div></div>
+        <p id="status-text">Iniciando precarga...</p>
+        <button id="start-btn">INICIAR REALIDAD AUMENTADA</button>
+    </div>
+
+    <a-scene id="main-scene" mindar-image="imageTargetSrc: https://raw.githubusercontent.com/inge7777/librosprueba/main/targets.mind" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" loading-screen="enabled: false" style="display:none;">
         <a-assets>
-            <a-asset-item id="model-0" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/corazon.glb"></a-asset-item><a-asset-item id="model-1" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/Robonaut-2.glb"></a-asset-item><a-asset-item id="model-2" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/mano-iz-protesis.glb"></a-asset-item><a-asset-item id="model-3" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/vehiculo1.glb"></a-asset-item><a-asset-item id="model-4" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/super-nova-o-proteina.glb"></a-asset-item>
+            <a-asset-item id="m0" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/corazon.glb"></a-asset-item><a-asset-item id="m1" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/Robonaut-2.glb"></a-asset-item><a-asset-item id="m2" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/mano-iz-protesis.glb"></a-asset-item><a-asset-item id="m3" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/super-nova-o-proteina.glb"></a-asset-item><a-asset-item id="m4" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/vehiculo1.glb"></a-asset-item>
         </a-assets>
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-        
-            <a-entity mindar-image-target="targetIndex: 0">
-                <a-gltf-model src="#model-0"></a-gltf-model>
-            </a-entity>
-            <a-entity mindar-image-target="targetIndex: 1">
-                <a-gltf-model src="#model-1"></a-gltf-model>
-            </a-entity>
-            <a-entity mindar-image-target="targetIndex: 2">
-                <a-gltf-model src="#model-2"></a-gltf-model>
-            </a-entity>
-            <a-entity mindar-image-target="targetIndex: 3">
-                <a-gltf-model src="#model-3"></a-gltf-model>
-            </a-entity>
-            <a-entity mindar-image-target="targetIndex: 4">
-                <a-gltf-model src="#model-4"></a-gltf-model>
-            </a-entity>
+        <a-entity mindar-image-target="targetIndex: 0"><a-gltf-model src="#m0"></a-gltf-model></a-entity><a-entity mindar-image-target="targetIndex: 1"><a-gltf-model src="#m1"></a-gltf-model></a-entity><a-entity mindar-image-target="targetIndex: 2"><a-gltf-model src="#m2"></a-gltf-model></a-entity><a-entity mindar-image-target="targetIndex: 3"><a-gltf-model src="#m3"></a-gltf-model></a-entity><a-entity mindar-image-target="targetIndex: 4"><a-gltf-model src="#m4"></a-gltf-model></a-entity>
     </a-scene>
+
     <script>
-        document.getElementById('start-btn').onclick = function() {
-            this.style.display = 'none';
-            document.getElementById('scene').style.display = 'block';
+        const models = ["https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/corazon.glb","https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/Robonaut-2.glb","https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/mano-iz-protesis.glb","https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/super-nova-o-proteina.glb","https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/vehiculo1.glb"];
+        const fill = document.getElementById('progress-fill');
+        const status = document.getElementById('status-text');
+        const btn = document.getElementById('start-btn');
+        let loaded = 0;
+
+        async function verifyAndLoad() {
+            for (const url of models) {
+                try {
+                    const response = await fetch(url, { cache: 'force-cache' });
+                    if (!response.ok) throw new Error();
+                    loaded++;
+                    fill.style.width = (loaded / models.length * 100) + '%';
+                    status.innerText = `Cargando: ${loaded}/${models.length} modelos`;
+                } catch(e) {
+                    status.innerText = 'Error al cargar modelos. Revisa tu conexión.';
+                    return;
+                }
+            }
+            status.innerText = '¡Todo listo!';
+            btn.style.display = 'block';
+        }
+
+        btn.onclick = () => {
+            document.getElementById('loader-overlay').style.display = 'none';
+            document.getElementById('main-scene').style.display = 'block';
         };
+
+        window.onload = verifyAndLoad;
     </script>
 </body>
 </html>
