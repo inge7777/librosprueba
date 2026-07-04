@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8">
+    <title>poema88 | AR Continuo</title>
+    <!-- Librerías de realidad aumentada optimizadas -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Ajuste de pantalla completa forzado para evitar rebotes de viewport en móviles */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #020617;
+            font-family: system-ui, sans-serif;
+            position: fixed;
+        }
+        .ar-hud { z-index: 999; pointer-events: none; }
+        .ar-hud * { pointer-events: auto; }
+        a-scene { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        
+        /* CORRECCIÓN CRÍTICA DE TAILWIND VS MINDAR: Forzar la cámara al 100% de la pantalla */
+        video {
+            max-width: none !important;
+            height: 100vh !important;
+            width: 100vw !important;
+            object-fit: cover !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            z-index: 0 !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Pantalla de Bienvenida y Verificación de Caché -->
+    <div id="loader-overlay" class="fixed inset-0 bg-slate-950 flex flex-col justify-center items-center z-[9999] px-6 text-center">
+        <div class="w-full max-w-md bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl space-y-6">
+            <div class="space-y-2">
+                <span class="text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-3 py-1 rounded-full uppercase font-bold tracking-widest">ECOPIESA PRELOADER</span>
+                <h2 class="text-2xl font-bold text-white">poema88</h2>
+                <p class="text-sm text-slate-400">Descargando recursos en caché temporal para evitar latencia.</p>
+            </div>
+
+            <!-- Barra de progreso general -->
+            <div class="space-y-2">
+                <div class="w-full h-3.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                    <div id="progress-fill" class="w-0 h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"></div>
+                </div>
+                <div class="flex justify-between text-xs font-mono text-slate-500">
+                    <span id="progress-label">Inicializando protocolo...</span>
+                    <span id="progress-percent">0%</span>
+                </div>
+            </div>
+
+            <!-- Log de verificación en vivo -->
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-850 max-h-32 overflow-y-auto text-left text-xs font-mono space-y-1" id="log-container">
+                <div class="text-slate-500">&gt; Iniciando validación del caché de assets...</div>
+            </div>
+
+            <!-- Botón Iniciador -->
+            <button id="start-btn" class="hidden w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-lg rounded-2xl shadow-lg transition-all transform active:scale-95 tracking-wide">
+                INICIAR REALIDAD AUMENTADA
+            </button>
+        </div>
+    </div>
+
+    <!-- HUD de Control -->
+    <div class="ar-hud fixed inset-x-0 top-0 p-4 flex flex-col justify-between h-full">
+        <!-- Indicador de Lectura Continua -->
+        <div class="flex justify-between items-center bg-slate-950/80 backdrop-blur-md px-4 py-3 rounded-2xl border border-slate-800 shadow-xl">
+            <div class="space-y-0.5">
+                <h4 class="text-white font-bold text-sm tracking-wide">poema88</h4>
+                <p class="text-indigo-400 font-mono text-[10px] font-bold">● ESCANEO CONTINUO ACTIVO</p>
+            </div>
+            <div class="text-[10px] text-slate-400 bg-slate-800 px-2.5 py-1 rounded border border-slate-700 uppercase font-bold tracking-widest">
+                Modo A
+            </div>
+        </div>
+
+        <!-- Indicaciones Interactivas -->
+        <div class="mx-auto max-w-sm text-center bg-slate-950/85 backdrop-blur-md px-4 py-3 rounded-2xl border border-slate-800 shadow-xl text-xs space-y-1 text-slate-300 pointer-events-auto">
+            <p id="hud-guide" class="font-medium">⚠️ Escanea cualquier página del libro físico...</p>
+            <p class="text-[10px] text-slate-500">Usa 1 dedo para girar el modelo. Pinza con 2 dedos para Zoom.</p>
+        </div>
+    </div>
+
+    <!-- Escena AR Única con todos los targets mapeados -->
+    <a-scene 
+        id="scene"
+        mindar-image="imageTargetSrc: https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/libromaria222/targets.mind; filterMinCF:0.0001; filterBeta: 0.001; autoStart: true;" 
+        vr-mode-ui="enabled: false" 
+        device-orientation-permission-ui="enabled: false"
+        loading-screen="enabled: false">
+        
+        <a-assets>
+            <a-asset-item id="model-0" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/corazon.glb"></a-asset-item>
+            <a-asset-item id="model-1" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/cabeza1.glb"></a-asset-item>
+            <a-asset-item id="model-2" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/Robonaut-2.glb"></a-asset-item>
+            <a-asset-item id="model-3" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/mano-iz-protesis.glb"></a-asset-item>
+            <a-asset-item id="model-4" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/super-nova-o-proteina.glb"></a-asset-item>
+        </a-assets>
+        
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <!-- Iluminación inteligente optimizada para resaltar modelos GLTF PBR en móviles -->
+        <a-light type="ambient" color="#ffffff" intensity="1.5"></a-light>
+        <a-light type="directional" color="#ffffff" intensity="1.0" position="-1 2 1"></a-light>
+        <a-light type="directional" color="#ffffff" intensity="0.5" position="1 -1 -1"></a-light>
+        
+        <!-- targets e inyección de gestos táctiles calibrados individualmente -->
+        
+        <a-entity mindar-image-target="targetIndex: 0" id="target-0">
+            <a-gltf-model 
+                src="#model-0" 
+                position="0 0 0" 
+                scale="1 1 1" 
+                rotation="0 0 0"
+                gesture-handler>
+            </a-gltf-model>
+        </a-entity>
+        <a-entity mindar-image-target="targetIndex: 1" id="target-1">
+            <a-gltf-model 
+                src="#model-1" 
+                position="0 0 0" 
+                scale="1 1 1" 
+                rotation="0 0 0"
+                gesture-handler>
+            </a-gltf-model>
+        </a-entity>
+        <a-entity mindar-image-target="targetIndex: 2" id="target-2">
+            <a-gltf-model 
+                src="#model-2" 
+                position="0 0 0" 
+                scale="1 1 1" 
+                rotation="0 0 0"
+                gesture-handler>
+            </a-gltf-model>
+        </a-entity>
+        <a-entity mindar-image-target="targetIndex: 3" id="target-3">
+            <a-gltf-model 
+                src="#model-3" 
+                position="0 0 0" 
+                scale="1 1 1" 
+                rotation="0 0 0"
+                gesture-handler>
+            </a-gltf-model>
+        </a-entity>
+        <a-entity mindar-image-target="targetIndex: 4" id="target-4">
+            <a-gltf-model 
+                src="#model-4" 
+                position="0 0 0" 
+                scale="1 1 1" 
+                rotation="0 0 0"
+                gesture-handler>
+            </a-gltf-model>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        // Registro de Interacción Multitáctil optimizada
+        AFRAME.registerComponent('gesture-handler', {
+            schema: {
+                enabled: {default: true},
+                rotationFactor: {default: 5},
+                minScale: {default: 0.05},
+                maxScale: {default: 10}
+            },
+            init: function () {
+                this.handleTouchMove = this.handleTouchMove.bind(this);
+                this.handleTouchStart = this.handleTouchStart.bind(this);
+                this.handleTouchEnd = this.handleTouchEnd.bind(this);
+                
+                this.el.sceneEl.addEventListener('touchstart', this.handleTouchStart);
+                this.el.sceneEl.addEventListener('touchmove', this.handleTouchMove);
+                this.el.sceneEl.addEventListener('touchend', this.handleTouchEnd);
+                
+                this.state = {};
+            },
+            handleTouchStart: function (e) {
+                if (e.touches.length === 1) {
+                    this.state.oneTouch = true;
+                    this.state.twoTouch = false;
+                    this.state.lastTouchX = e.touches[0].clientX;
+                    this.state.lastTouchY = e.touches[0].clientY;
+                } else if (e.touches.length === 2) {
+                    this.state.oneTouch = false;
+                    this.state.twoTouch = true;
+                    this.state.initialDistance = this.getDistance(e.touches);
+                    const currentScale = this.el.getAttribute('scale');
+                    this.state.initialScale = currentScale ? currentScale.x : 1;
+                }
+            },
+            handleTouchMove: function (e) {
+                if (!this.data.enabled) return;
+
+                // Validación de visibilidad: Sólo procesar si el marcador correspondiente está visible en pantalla
+                let isTracked = false;
+                let parent = this.el;
+                while (parent && parent.tagName !== 'A-SCENE') {
+                    if (parent.hasAttribute('mindar-image-target')) {
+                        isTracked = parent.object3D.visible;
+                        break;
+                    }
+                    parent = parent.parentElement;
+                }
+                if (!isTracked) return;
+                
+                if (this.state.oneTouch && e.touches.length === 1) {
+                    const deltaX = e.touches[0].clientX - this.state.lastTouchX;
+                    const deltaY = e.touches[0].clientY - this.state.lastTouchY;
+                    
+                    const rotation = this.el.getAttribute('rotation');
+                    this.el.setAttribute('rotation', {
+                        x: rotation.x + deltaY * 0.4,
+                        y: rotation.y + deltaX * 0.4,
+                        z: rotation.z
+                    });
+                    
+                    this.state.lastTouchX = e.touches[0].clientX;
+                    this.state.lastTouchY = e.touches[0].clientY;
+                } else if (this.state.twoTouch && e.touches.length === 2) {
+                    const currentDistance = this.getDistance(e.touches);
+                    const factor = currentDistance / this.state.initialDistance;
+                    let newScale = this.state.initialScale * factor;
+                    newScale = Math.max(this.data.minScale, Math.min(this.data.maxScale, newScale));
+                    this.el.setAttribute('scale', {x: newScale, y: newScale, z: newScale});
+                }
+            },
+            handleTouchEnd: function (e) {
+                this.state.oneTouch = false;
+                this.state.twoTouch = false;
+            },
+            getDistance: function (touches) {
+                const dx = touches[0].clientX - touches[1].clientX;
+                const dy = touches[0].clientY - touches[1].clientY;
+                return Math.sqrt(dx * dx + dy * dy);
+            },
+            remove: function () {
+                this.el.sceneEl.removeEventListener('touchstart', this.handleTouchStart);
+                this.el.sceneEl.removeEventListener('touchmove', this.handleTouchMove);
+                this.el.sceneEl.removeEventListener('touchend', this.handleTouchEnd);
+            }
+        });
+
+        // Logger y descarga forzada a Caché del Navegador
+        const assetsToVerify = [
+            { type: 'Marcador', url: 'https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/libromaria222/targets.mind', name: 'Marcador Maestro .mind' }
+        ];
+        
+        const models = [{"mind":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/libromaria222/targets.mind","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/corazon.glb","scale":"1 1 1","pos":"0 0 0","rot":"0 0 0","targetIndex":0},{"mind":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/libromaria222/targets.mind","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/cabeza1.glb","scale":"1 1 1","pos":"0 0 0","rot":"0 0 0","targetIndex":1},{"mind":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/libromaria222/targets.mind","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/Robonaut-2.glb","scale":"1 1 1","pos":"0 0 0","rot":"0 0 0","targetIndex":2},{"mind":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/libromaria222/targets.mind","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/mano-iz-protesis.glb","scale":"1 1 1","pos":"0 0 0","rot":"0 0 0","targetIndex":3},{"mind":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/libromaria222/targets.mind","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/super-nova-o-proteina.glb","scale":"1 1 1","pos":"0 0 0","rot":"0 0 0","targetIndex":4}];
+        models.forEach((m, idx) => {
+            assetsToVerify.push({ type: 'Modelo', url: m.glb, name: `Modelo 3D Pág. ${idx + 1}` });
+        });
+
+        function addLog(message, isError = false) {
+            const container = document.getElementById('log-container');
+            const log = document.createElement('div');
+            log.className = isError ? "text-red-400" : "text-emerald-400";
+            log.innerText = `> ${message}`;
+            container.appendChild(log);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function verifyAndCacheAssets() {
+            const fill = document.getElementById('progress-fill');
+            const percentLabel = document.getElementById('progress-percent');
+            const label = document.getElementById('progress-label');
+            const btn = document.getElementById('start-btn');
+
+            const total = assetsToVerify.length;
+            let loadedCount = 0;
+
+            for (const asset of assetsToVerify) {
+                try {
+                    label.innerText = `Descargando ${asset.name}...`;
+                    addLog(`Descargando ${asset.name}...`);
+                    
+                    const res = await fetch(asset.url, { cache: 'force-cache' });
+                    if (!res.ok) throw new Error(`Código HTTP ${res.status}`);
+                    
+                    loadedCount++;
+                    const percent = Math.round((loadedCount / total) * 100);
+                    fill.style.width = `${percent}%`;
+                    percentLabel.innerText = `${percent}%`;
+                    addLog(`✓ ${asset.name} guardado en caché.`);
+                } catch(err) {
+                    addLog(`❌ Error en ${asset.name}: ${err.message}`, true);
+                    label.innerText = 'Fallo al inicializar recursos.';
+                    return;
+                }
+            }
+
+            label.innerText = "¡Todos los recursos listos!";
+            addLog("Ecopiesa Preflight: Memoria intermedia asegurada.");
+            btn.classList.remove('hidden');
+        }
+
+        // Suscripción de eventos dinámicos para el HUD de usuario
+        document.querySelectorAll('[mindar-image-target]').forEach((target, index) => {
+            target.addEventListener('targetFound', () => {
+                document.getElementById('hud-guide').innerHTML = `🟢 Marcador ${index + 1} Detectado. Rotar y Zoom habilitados.`;
+            });
+            target.addEventListener('targetLost', () => {
+                document.getElementById('hud-guide').innerHTML = "⚠️ Escanea cualquier página del libro físico...";
+            });
+        });
+
+        // Ocultar preloader y revelar cámara inmediatamente al pulsar el botón
+        document.getElementById('start-btn').onclick = () => {
+            document.getElementById('loader-overlay').style.display = 'none';
+        };
+
+        window.onload = verifyAndCacheAssets;
+    </script>
+</body>
+</html>
