@@ -3,13 +3,12 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta charset="UTF-8">
-    <title>poema88 | AR Continuo</title>
-    <!-- Librerías de realidad aumentada optimizadas -->
+    <title>poema9 | AR Continuo Multimedia</title>
+    <!-- Librerías estables de A-Frame y MindAR -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Ajuste de pantalla completa forzado para evitar rebotes de viewport en móviles */
         html, body {
             margin: 0;
             padding: 0;
@@ -24,8 +23,8 @@
         .ar-hud * { pointer-events: auto; }
         a-scene { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
-        /* CORRECCIÓN CRÍTICA DE TAILWIND VS MINDAR: Forzar la cámara al 100% de la pantalla */
-        video {
+        /* CORRECCIÓN DE VIEWPORT Y ELIMINACIÓN DE FRANJAS BLANCAS EN PANTALLAS TÁCTILES */
+        video:not(.ar-video) {
             max-width: none !important;
             height: 100vh !important;
             width: 100vw !important;
@@ -39,16 +38,16 @@
 </head>
 <body>
 
-    <!-- Pantalla de Bienvenida y Verificación de Caché -->
+    <!-- Preloader y Desbloqueador de Audio/Video Móvil -->
     <div id="loader-overlay" class="fixed inset-0 bg-slate-950 flex flex-col justify-center items-center z-[9999] px-6 text-center">
         <div class="w-full max-w-md bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl space-y-6">
             <div class="space-y-2">
-                <span class="text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-3 py-1 rounded-full uppercase font-bold tracking-widest">ECOPIESA PRELOADER</span>
-                <h2 class="text-2xl font-bold text-white">poema88</h2>
-                <p class="text-sm text-slate-400">Descargando recursos en caché temporal para evitar latencia.</p>
+                <span class="text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-3 py-1 rounded-full uppercase font-bold tracking-widest">ECOPIESA MULTIMEDIA PRELOADER</span>
+                <h2 class="text-2xl font-bold text-white">poema9</h2>
+                <p class="text-sm text-slate-400">Descargando videos explicativos y modelos 3D en la caché temporal del dispositivo móvil.</p>
             </div>
 
-            <!-- Barra de progreso general -->
+            <!-- Barra de progreso -->
             <div class="space-y-2">
                 <div class="w-full h-3.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
                     <div id="progress-fill" class="w-0 h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"></div>
@@ -59,112 +58,219 @@
                 </div>
             </div>
 
-            <!-- Log de verificación en vivo -->
             <div class="bg-slate-950 p-4 rounded-xl border border-slate-850 max-h-32 overflow-y-auto text-left text-xs font-mono space-y-1" id="log-container">
-                <div class="text-slate-500">&gt; Iniciando validación del caché de assets...</div>
+                <div class="text-slate-500">&gt; Verificando soporte de códecs de video...</div>
             </div>
 
-            <!-- Botón Iniciador -->
-            <button id="start-btn" class="hidden w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-lg rounded-2xl shadow-lg transition-all transform active:scale-95 tracking-wide">
+            <button id="start-btn" class="hidden w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-lg rounded-2xl shadow-lg transition-all transform active:scale-95 tracking-wide">
                 INICIAR REALIDAD AUMENTADA
             </button>
         </div>
     </div>
 
-    <!-- HUD de Control -->
-    <div class="ar-hud fixed inset-x-0 top-0 p-4 flex flex-col justify-between h-full">
-        <!-- Indicador de Lectura Continua -->
+    <!-- HUD de Control Móvil (Glassmorphism) -->
+    <div class="ar-hud fixed inset-0 p-4 flex flex-col justify-between h-full pointer-events-none">
+        
+        <!-- Cabecera de Estado -->
         <div class="flex justify-between items-center bg-slate-950/80 backdrop-blur-md px-4 py-3 rounded-2xl border border-slate-800 shadow-xl">
             <div class="space-y-0.5">
-                <h4 class="text-white font-bold text-sm tracking-wide">poema88</h4>
-                <p class="text-indigo-400 font-mono text-[10px] font-bold">● ESCANEO CONTINUO ACTIVO</p>
+                <h4 class="text-white font-bold text-sm tracking-wide">poema9</h4>
+                <p class="text-emerald-400 font-mono text-[10px] font-bold" id="hud-status">● ESCANEO ACTIVO</p>
             </div>
             <div class="text-[10px] text-slate-400 bg-slate-800 px-2.5 py-1 rounded border border-slate-700 uppercase font-bold tracking-widest">
                 Modo A
             </div>
         </div>
 
-        <!-- Indicaciones Interactivas -->
-        <div class="mx-auto max-w-sm text-center bg-slate-950/85 backdrop-blur-md px-4 py-3 rounded-2xl border border-slate-800 shadow-xl text-xs space-y-1 text-slate-300 pointer-events-auto">
-            <p id="hud-guide" class="font-medium">⚠️ Escanea cualquier página del libro físico...</p>
-            <p class="text-[10px] text-slate-500">Usa 1 dedo para girar el modelo. Pinza con 2 dedos para Zoom.</p>
+        <!-- Indicador de Detección Guía -->
+        <div class="mx-auto max-w-sm text-center bg-slate-950/85 backdrop-blur-md px-4 py-3 rounded-2xl border border-slate-800 shadow-xl text-xs space-y-1 text-slate-300">
+            <p id="hud-guide" class="font-medium">⚠️ Escanea una página para dar vida a la foto...</p>
+        </div>
+
+        <!-- Barra de Acciones de Reproducción -->
+        <div id="media-controls" class="hidden grid grid-cols-2 gap-3 max-w-sm mx-auto w-full">
+            <button onclick="playVideoAgain()" class="py-3 px-2 bg-slate-950/85 hover:bg-slate-900 border border-slate-800 text-white rounded-2xl font-bold text-xs shadow-xl transition-all active:scale-95 flex items-center justify-center gap-1.5">
+                <span>🎥</span> Foto Animada
+            </button>
+            <button onclick="showModelMode()" class="py-3 px-2 bg-indigo-600/90 hover:bg-indigo-500 border border-indigo-500/30 text-white rounded-2xl font-bold text-xs shadow-xl transition-all active:scale-95 flex items-center justify-center gap-1.5">
+                <span>📦</span> Modo 3D Emergente
+            </button>
         </div>
     </div>
 
-    <!-- Escena AR Única con todos los targets mapeados -->
+    <!-- Escena AR Principal -->
     <a-scene 
         id="scene"
-        mindar-image="imageTargetSrc: https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/libromaria222/targets.mind; filterMinCF:0.0001; filterBeta: 0.001; autoStart: true;" 
+        mindar-image="imageTargetSrc: https://raw.githubusercontent.com/inge7777/librosprueba/main/targets.mind; filterMinCF:0.0001; filterBeta: 0.001; autoStart: true;" 
         vr-mode-ui="enabled: false" 
         device-orientation-permission-ui="enabled: false"
         loading-screen="enabled: false">
         
         <a-assets>
+            
+            <video id="video-src-0" src="https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/videos/pagina6/pagina6f.mp4" preload="auto" playsinline webkit-playsinline class="ar-video" crossOrigin="anonymous"></video>
             <a-asset-item id="model-0" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/corazon.glb"></a-asset-item>
-            <a-asset-item id="model-1" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/cabeza1.glb"></a-asset-item>
-            <a-asset-item id="model-2" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/Robonaut-2.glb"></a-asset-item>
-            <a-asset-item id="model-3" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/mano-iz-protesis.glb"></a-asset-item>
+            
+            
+            <video id="video-src-1" src="https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/videos/pagina6/pagina6f.mp4" preload="auto" playsinline webkit-playsinline class="ar-video" crossOrigin="anonymous"></video>
+            <a-asset-item id="model-1" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/astronauta.glb"></a-asset-item>
+            
+            
+            <video id="video-src-2" src="https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/videos/pagina6/pagina6f.mp4" preload="auto" playsinline webkit-playsinline class="ar-video" crossOrigin="anonymous"></video>
+            <a-asset-item id="model-2" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/super-nova-o-proteina.glb"></a-asset-item>
+            
+            
+            <video id="video-src-3" src="https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/videos/pagina6/pagina6f.mp4" preload="auto" playsinline webkit-playsinline class="ar-video" crossOrigin="anonymous"></video>
+            <a-asset-item id="model-3" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/protesis-mano-brazo.glb"></a-asset-item>
+            
+            
+            <video id="video-src-4" src="https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/videos/pagina6/pagina6f.mp4" preload="auto" playsinline webkit-playsinline class="ar-video" crossOrigin="anonymous"></video>
             <a-asset-item id="model-4" src="https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/super-nova-o-proteina.glb"></a-asset-item>
+            
         </a-assets>
         
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-        <!-- Iluminación inteligente optimizada para resaltar modelos GLTF PBR en móviles -->
+        <!-- Iluminación inteligente para resaltar los modelos GLTF -->
         <a-light type="ambient" color="#ffffff" intensity="1.5"></a-light>
         <a-light type="directional" color="#ffffff" intensity="1.0" position="-1 2 1"></a-light>
         <a-light type="directional" color="#ffffff" intensity="0.5" position="1 -1 -1"></a-light>
         
-        <!-- targets e inyección de gestos táctiles calibrados individualmente -->
+        <!-- Mapeo de Entidades con Lógica Secuencial Video -> Modelo -->
         
-        <a-entity mindar-image-target="targetIndex: 0" id="target-0">
+        <a-entity mindar-image-target="targetIndex: 0" id="target-0" class="ar-target-anchor" data-index="0">
+            <!-- Plano del Video (Filtro Plano acoplado perfectamente al marcador del papel) -->
+            <a-video 
+                id="ar-video-0"
+                src="#video-src-0" 
+                width="1.6" 
+                height="0.9" 
+                position="0 0 0.01" 
+                rotation="0 0 0"
+                visible="true"
+                animation__shrink="property: scale; to: 0 0 0; dur: 350; easing: easeInBack; startEvents: shrink">
+            </a-video>
+
+            <!-- Modelo 3D (Emerge mágicamente con un rebote elástico desde el papel al finalizar el video) -->
             <a-gltf-model 
+                id="ar-model-0"
                 src="#model-0" 
                 position="0 0 0" 
-                scale="1 1 1" 
+                scale="0 0 0" 
                 rotation="0 0 0"
+                visible="false"
+                animation__reveal="property: scale; from: 0 0 0; to: 1 1 1; dur: 900; easing: easeOutBack; startEvents: reveal"
                 gesture-handler>
             </a-gltf-model>
         </a-entity>
-        <a-entity mindar-image-target="targetIndex: 1" id="target-1">
+        <a-entity mindar-image-target="targetIndex: 1" id="target-1" class="ar-target-anchor" data-index="1">
+            <!-- Plano del Video (Filtro Plano acoplado perfectamente al marcador del papel) -->
+            <a-video 
+                id="ar-video-1"
+                src="#video-src-1" 
+                width="1.6" 
+                height="0.9" 
+                position="0 0 0.01" 
+                rotation="0 0 0"
+                visible="true"
+                animation__shrink="property: scale; to: 0 0 0; dur: 350; easing: easeInBack; startEvents: shrink">
+            </a-video>
+
+            <!-- Modelo 3D (Emerge mágicamente con un rebote elástico desde el papel al finalizar el video) -->
             <a-gltf-model 
+                id="ar-model-1"
                 src="#model-1" 
                 position="0 0 0" 
-                scale="1 1 1" 
+                scale="0 0 0" 
                 rotation="0 0 0"
+                visible="false"
+                animation__reveal="property: scale; from: 0 0 0; to: 1 1 1; dur: 900; easing: easeOutBack; startEvents: reveal"
                 gesture-handler>
             </a-gltf-model>
         </a-entity>
-        <a-entity mindar-image-target="targetIndex: 2" id="target-2">
+        <a-entity mindar-image-target="targetIndex: 2" id="target-2" class="ar-target-anchor" data-index="2">
+            <!-- Plano del Video (Filtro Plano acoplado perfectamente al marcador del papel) -->
+            <a-video 
+                id="ar-video-2"
+                src="#video-src-2" 
+                width="1.6" 
+                height="0.9" 
+                position="0 0 0.01" 
+                rotation="0 0 0"
+                visible="true"
+                animation__shrink="property: scale; to: 0 0 0; dur: 350; easing: easeInBack; startEvents: shrink">
+            </a-video>
+
+            <!-- Modelo 3D (Emerge mágicamente con un rebote elástico desde el papel al finalizar el video) -->
             <a-gltf-model 
+                id="ar-model-2"
                 src="#model-2" 
                 position="0 0 0" 
-                scale="1 1 1" 
+                scale="0 0 0" 
                 rotation="0 0 0"
+                visible="false"
+                animation__reveal="property: scale; from: 0 0 0; to: 1 1 1; dur: 900; easing: easeOutBack; startEvents: reveal"
                 gesture-handler>
             </a-gltf-model>
         </a-entity>
-        <a-entity mindar-image-target="targetIndex: 3" id="target-3">
+        <a-entity mindar-image-target="targetIndex: 3" id="target-3" class="ar-target-anchor" data-index="3">
+            <!-- Plano del Video (Filtro Plano acoplado perfectamente al marcador del papel) -->
+            <a-video 
+                id="ar-video-3"
+                src="#video-src-3" 
+                width="1.6" 
+                height="0.9" 
+                position="0 0 0.01" 
+                rotation="0 0 0"
+                visible="true"
+                animation__shrink="property: scale; to: 0 0 0; dur: 350; easing: easeInBack; startEvents: shrink">
+            </a-video>
+
+            <!-- Modelo 3D (Emerge mágicamente con un rebote elástico desde el papel al finalizar el video) -->
             <a-gltf-model 
+                id="ar-model-3"
                 src="#model-3" 
                 position="0 0 0" 
-                scale="1 1 1" 
+                scale="0 0 0" 
                 rotation="0 0 0"
+                visible="false"
+                animation__reveal="property: scale; from: 0 0 0; to: 1 1 1; dur: 900; easing: easeOutBack; startEvents: reveal"
                 gesture-handler>
             </a-gltf-model>
         </a-entity>
-        <a-entity mindar-image-target="targetIndex: 4" id="target-4">
+        <a-entity mindar-image-target="targetIndex: 4" id="target-4" class="ar-target-anchor" data-index="4">
+            <!-- Plano del Video (Filtro Plano acoplado perfectamente al marcador del papel) -->
+            <a-video 
+                id="ar-video-4"
+                src="#video-src-4" 
+                width="1.6" 
+                height="0.9" 
+                position="0 0 0.01" 
+                rotation="0 0 0"
+                visible="true"
+                animation__shrink="property: scale; to: 0 0 0; dur: 350; easing: easeInBack; startEvents: shrink">
+            </a-video>
+
+            <!-- Modelo 3D (Emerge mágicamente con un rebote elástico desde el papel al finalizar el video) -->
             <a-gltf-model 
+                id="ar-model-4"
                 src="#model-4" 
                 position="0 0 0" 
-                scale="1 1 1" 
+                scale="0 0 0" 
                 rotation="0 0 0"
+                visible="false"
+                animation__reveal="property: scale; from: 0 0 0; to: 1 1 1; dur: 900; easing: easeOutBack; startEvents: reveal"
                 gesture-handler>
             </a-gltf-model>
         </a-entity>
     </a-scene>
 
     <script>
-        // Registro de Interacción Multitáctil optimizada
+        const pages = [{"mind":"https://raw.githubusercontent.com/inge7777/librosprueba/main/targets.mind","video":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/videos/pagina6/pagina6f.mp4","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/corazon.glb","scale":"1 1 1","pos":"0 0 0","rot":"0 0 0","vWidth":"1.6","vHeight":"0.9","targetIndex":0},{"mind":"https://raw.githubusercontent.com/inge7777/librosprueba/main/targets.mind","video":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/videos/pagina6/pagina6f.mp4","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/astronauta.glb","scale":"1 1 1","pos":"0 0 0","rot":"0 0 0","vWidth":"1.6","vHeight":"0.9","targetIndex":1},{"mind":"https://raw.githubusercontent.com/inge7777/librosprueba/main/targets.mind","video":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/videos/pagina6/pagina6f.mp4","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/super-nova-o-proteina.glb","scale":"1 1 1","pos":"0 0 0","rot":"0 0 0","vWidth":"1.6","vHeight":"0.9","targetIndex":2},{"mind":"https://raw.githubusercontent.com/inge7777/librosprueba/main/targets.mind","video":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/videos/pagina6/pagina6f.mp4","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/protesis-mano-brazo.glb","scale":"1 1 1","pos":"0 0 0","rot":"0 0 0","vWidth":"1.6","vHeight":"0.9","targetIndex":3},{"mind":"https://raw.githubusercontent.com/inge7777/librosprueba/main/targets.mind","video":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/videos/pagina6/pagina6f.mp4","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/super-nova-o-proteina.glb","scale":"1 1 1","pos":"0 0 0","rot":"0 0 0","vWidth":"1.6","vHeight":"0.9","targetIndex":4}];
+        let activeTargetIndex = null;
+        let isVideoMode = true;
+
+        // Manejador Multitáctil optimizado
         AFRAME.registerComponent('gesture-handler', {
             schema: {
                 enabled: {default: true},
@@ -198,9 +304,8 @@
                 }
             },
             handleTouchMove: function (e) {
-                if (!this.data.enabled) return;
+                if (!this.data.enabled || isVideoMode) return;
 
-                // Validación de visibilidad: Sólo procesar si el marcador correspondiente está visible en pantalla
                 let isTracked = false;
                 let parent = this.el;
                 while (parent && parent.tagName !== 'A-SCENE') {
@@ -249,14 +354,13 @@
             }
         });
 
-        // Logger y descarga forzada a Caché del Navegador
         const assetsToVerify = [
-            { type: 'Marcador', url: 'https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/libromaria222/targets.mind', name: 'Marcador Maestro .mind' }
+            { type: 'Marcador', url: 'https://raw.githubusercontent.com/inge7777/librosprueba/main/targets.mind', name: 'Marcador Maestro .mind' }
         ];
         
-        const models = [{"mind":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/libromaria222/targets.mind","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/corazon.glb","scale":"1 1 1","pos":"0 0 0","rot":"0 0 0","targetIndex":0},{"mind":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/libromaria222/targets.mind","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/cabeza1.glb","scale":"1 1 1","pos":"0 0 0","rot":"0 0 0","targetIndex":1},{"mind":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/libromaria222/targets.mind","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/Robonaut-2.glb","scale":"1 1 1","pos":"0 0 0","rot":"0 0 0","targetIndex":2},{"mind":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/libromaria222/targets.mind","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/mano-iz-protesis.glb","scale":"1 1 1","pos":"0 0 0","rot":"0 0 0","targetIndex":3},{"mind":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/libromaria222/targets.mind","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/super-nova-o-proteina.glb","scale":"1 1 1","pos":"0 0 0","rot":"0 0 0","targetIndex":4}];
-        models.forEach((m, idx) => {
-            assetsToVerify.push({ type: 'Modelo', url: m.glb, name: `Modelo 3D Pág. ${idx + 1}` });
+        pages.forEach((p, idx) => {
+            assetsToVerify.push({ type: 'Video', url: p.video, name: `Video Explicativo Pág. ${idx + 1}` });
+            assetsToVerify.push({ type: 'Modelo', url: p.glb, name: `Modelo 3D Pág. ${idx + 1}` });
         });
 
         function addLog(message, isError = false) {
@@ -289,32 +393,127 @@
                     const percent = Math.round((loadedCount / total) * 100);
                     fill.style.width = `${percent}%`;
                     percentLabel.innerText = `${percent}%`;
-                    addLog(`✓ ${asset.name} guardado en caché.`);
+                    addLog(`✓ ${asset.name} verificado.`);
                 } catch(err) {
                     addLog(`❌ Error en ${asset.name}: ${err.message}`, true);
-                    label.innerText = 'Fallo al inicializar recursos.';
+                    label.innerText = 'Fallo de precarga de red.';
                     return;
                 }
             }
 
-            label.innerText = "¡Todos los recursos listos!";
-            addLog("Ecopiesa Preflight: Memoria intermedia asegurada.");
+            label.innerText = "¡Recursos multimedia listos en el caché local!";
+            addLog("Ecopiesa Preflight: Verificación exitosa. Autoplay autorizado.");
             btn.classList.remove('hidden');
         }
 
-        // Suscripción de eventos dinámicos para el HUD de usuario
-        document.querySelectorAll('[mindar-image-target]').forEach((target, index) => {
-            target.addEventListener('targetFound', () => {
-                document.getElementById('hud-guide').innerHTML = `🟢 Marcador ${index + 1} Detectado. Rotar y Zoom habilitados.`;
+        // LÓGICA DE DETECCIÓN SECUENCIAL DE MARCADOR
+        document.querySelectorAll('[mindar-image-target]').forEach((targetEl) => {
+            const pageIndex = parseInt(targetEl.getAttribute('data-index'));
+            const videoElement = document.getElementById(`video-src-${pageIndex}`);
+
+            targetEl.addEventListener('targetFound', () => {
+                activeTargetIndex = pageIndex;
+                document.getElementById('media-controls').classList.remove('hidden');
+                document.getElementById('hud-status').innerText = `● PÁGINA ${pageIndex + 1} DETECTADA`;
+                document.getElementById('hud-status').className = "text-emerald-400 font-mono text-[10px] font-bold";
+
+                setupVideoMode();
             });
-            target.addEventListener('targetLost', () => {
-                document.getElementById('hud-guide').innerHTML = "⚠️ Escanea cualquier página del libro físico...";
+
+            targetEl.addEventListener('targetLost', () => {
+                if (activeTargetIndex === pageIndex) {
+                    videoElement.pause();
+                    document.getElementById('media-controls').classList.add('hidden');
+                    document.getElementById('hud-status').innerText = "● ESCANEO ACTIVO";
+                    document.getElementById('hud-status').className = "text-indigo-400 font-mono text-[10px] font-bold";
+                    document.getElementById('hud-guide').innerHTML = "⚠️ Escanea una página para dar vida a la foto...";
+                    activeTargetIndex = null;
+                }
             });
+
+            // Al finalizar el video, inicia automáticamente la transición mágica al modelo 3D
+            videoElement.onended = () => {
+                addLog(`Video finalizado en página ${pageIndex + 1}. Revelando modelo 3D...`);
+                setupModelMode();
+            };
         });
 
-        // Ocultar preloader y revelar cámara inmediatamente al pulsar el botón
+        // Configurar Vista de Video (Estilo Diario El Profeta)
+        function setupVideoMode() {
+            if (activeTargetIndex === null) return;
+            isVideoMode = true;
+
+            const videoPlane = document.getElementById(`ar-video-${activeTargetIndex}`);
+            const modelEl = document.getElementById(`ar-model-${activeTargetIndex}`);
+            const videoElement = document.getElementById(`video-src-${activeTargetIndex}`);
+
+            // Cancelar cualquier animación de shrink activa y restablecer escala del video
+            videoPlane.removeAttribute('animation__shrink');
+            videoPlane.setAttribute('scale', '1 1 1');
+            videoPlane.setAttribute('visible', 'true');
+            
+            // Ocultar modelo y resetear escala
+            modelEl.setAttribute('visible', 'false');
+            modelEl.setAttribute('scale', '0 0 0');
+
+            // Iniciar video con audio
+            videoElement.currentTime = 0;
+            videoElement.play().catch(e => console.log("Fallo reproducción:", e));
+
+            document.getElementById('hud-guide').innerHTML = `🎥 Retrato en movimiento de la Página ${activeTargetIndex + 1}...`;
+        }
+
+        // Configurar Vista de Modelo 3D Interactivo (Transición emergente suave)
+        function showModelMode() {
+            setupModelMode();
+        }
+
+        function setupModelMode() {
+            if (activeTargetIndex === null) return;
+            isVideoMode = false;
+
+            const videoPlane = document.getElementById(`ar-video-${activeTargetIndex}`);
+            const modelEl = document.getElementById(`ar-model-${activeTargetIndex}`);
+            const videoElement = document.getElementById(`video-src-${activeTargetIndex}`);
+
+            videoElement.pause();
+
+            // Re-vincular animación de encogimiento y disparar
+            videoPlane.setAttribute('animation__shrink', 'property: scale; to: 0 0 0; dur: 350; easing: easeInBack; startEvents: shrink');
+            videoPlane.emit('shrink');
+
+            setTimeout(() => {
+                videoPlane.setAttribute('visible', 'false');
+                
+                // Activar el modelo 3D e iniciar animación de revelación elástica
+                modelEl.setAttribute('visible', 'true');
+                modelEl.emit('reveal');
+            }, 350);
+
+            document.getElementById('hud-guide').innerHTML = `📦 Interactúa con el modelo 3D de la Página ${activeTargetIndex + 1} (Girar/Zoom)`;
+        }
+
+        function playVideoAgain() {
+            setupVideoMode();
+        }
+
+        // CONTROL DE BYPASS DE POLÍTICA DE SEGURIDAD (USER GESTURE UNLOCK)
         document.getElementById('start-btn').onclick = () => {
             document.getElementById('loader-overlay').style.display = 'none';
+
+            // Truco de Bypass: Reproducir y pausar silenciosamente para autorizar el audio en móvil
+            pages.forEach((p, i) => {
+                const video = document.getElementById(`video-src-${i}`);
+                if (video) {
+                    video.muted = false;
+                    video.play().then(() => {
+                        video.pause();
+                        video.currentTime = 0;
+                    }).catch(err => {
+                        console.log("Error de bypass:", err);
+                    });
+                }
+            });
         };
 
         window.onload = verifyAndCacheAssets;
