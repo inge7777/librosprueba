@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8">
+    <title>ecolibro pro max | AR Continuo (Blob Cache)</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #020617; font-family: system-ui, sans-serif; position: fixed; }
+        .ar-hud { z-index: 999; pointer-events: none; } .ar-hud * { pointer-events: auto; }
+        a-scene { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        video:not(.ar-video) { max-width: none !important; height: 100vh !important; width: 100vw !important; object-fit: cover !important; position: absolute !important; top: 0 !important; left: 0 !important; z-index: 0 !important; }
+    </style>
+</head>
+<body>
+
+    <div id="loader-overlay" class="fixed inset-0 bg-slate-950 flex flex-col justify-center items-center z-[9999] px-6 text-center">
+        <div class="w-full max-w-md bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl space-y-6">
+            <div class="space-y-2">
+                <span class="text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-3 py-1 rounded-full uppercase font-bold tracking-widest">ECOPIESA SMART CACHER</span>
+                <h2 class="text-2xl font-bold text-white">ecolibro pro max</h2>
+                <p class="text-sm text-slate-400 font-medium">Empaquetando libro en la Memoria RAM móvil para cero consumo de red.</p>
+            </div>
+            <div class="space-y-2">
+                <div class="w-full h-3.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                    <div id="progress-fill" class="w-0 h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"></div>
+                </div>
+                <div class="flex justify-between text-xs font-mono text-slate-500">
+                    <span id="progress-label">Iniciando preflight...</span>
+                    <span id="progress-percent">0%</span>
+                </div>
+            </div>
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-850 max-h-32 overflow-y-auto text-left text-xs font-mono space-y-1" id="log-container">
+                <div class="text-slate-500">&gt; Indexando archivos únicos...</div>
+            </div>
+            <button id="start-btn" class="hidden w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-lg rounded-2xl shadow-lg transition-all tracking-wide">
+                INICIAR REALIDAD AUMENTADA
+            </button>
+        </div>
+    </div>
+
+    <!-- El motor A-Frame se inyecta dinámicamente para prevenir descargas duplicadas -->
+    <div id="scene-container" class="w-full h-full"></div>
+
+    <div id="ar-hud" class="hidden ar-hud fixed inset-0 p-4 flex flex-col justify-between h-full pointer-events-none">
+        <div class="flex justify-between items-center bg-slate-950/80 backdrop-blur-md px-4 py-3 rounded-2xl border border-slate-800 shadow-xl">
+            <div class="space-y-0.5">
+                <h4 class="text-white font-bold text-sm tracking-wide">ecolibro pro max</h4>
+                <p class="text-emerald-400 font-mono text-[10px] font-bold" id="hud-status">● ESCANEO ACTIVO</p>
+            </div>
+            <div class="text-[10px] text-slate-400 bg-slate-800 px-2.5 py-1 rounded border border-slate-700 uppercase font-bold tracking-widest">Modo Continuo</div>
+        </div>
+        <div id="hud-guide-container" class="mx-auto max-w-sm text-center bg-slate-950/85 backdrop-blur-md px-4 py-3 rounded-2xl border border-slate-800 shadow-xl text-xs space-y-1 text-slate-300 transition-opacity duration-500">
+            <p id="hud-guide" class="font-medium">⚠️ Escanea una página para dar vida a la foto...</p>
+        </div>
+        <div id="media-controls" class="hidden grid grid-cols-2 gap-3 max-w-sm mx-auto w-full">
+            <button onclick="playVideoAgain()" class="py-3 px-2 bg-slate-950/85 hover:bg-slate-900 border border-slate-800 text-white rounded-2xl font-bold text-xs shadow-xl flex items-center justify-center gap-1.5"><span>🎥</span> Foto Animada</button>
+            <button onclick="showModelMode()" class="py-3 px-2 bg-indigo-600/90 hover:bg-indigo-500 border border-indigo-500/30 text-white rounded-2xl font-bold text-xs shadow-xl flex items-center justify-center gap-1.5"><span>📦</span> Ver Modelo 3D</button>
+        </div>
+    </div>
+
+    <script>
+        
+        AFRAME.registerComponent('smart-video-fit', {
+            schema: { targetWidth: {type: 'number', default: 1.0}, targetHeight: {type: 'number', default: 1.414} },
+            init: function () {
+                const el = this.el;
+                const videoId = el.getAttribute('src');
+                if (!videoId) return;
+                const videoEl = document.querySelector(videoId) || document.getElementById(videoId.replace('#', ''));
+                if (!videoEl) return;
+
+                const applyFit = () => {
+                    const vW = videoEl.videoWidth, vH = videoEl.videoHeight;
+                    if (vW === 0 || vH === 0) return;
+                    const tW = this.data.targetWidth, tH = this.data.targetHeight;
+                    const isVideoHor = vW > vH, isTargetHor = tW >= tH;
+                    let fW, fH, fRot;
+
+                    if (isVideoHor !== isTargetHor) {
+                        fRot = '0 0 -90';
+                        const vAsp = vW / vH, tAspRot = tH / tW;
+                        if (vAsp > tAspRot) { fH = tW; fW = fH * vAsp; } else { fW = tH; fH = fW / vAsp; }
+                    } else {
+                        fRot = '0 0 0';
+                        const vAsp = vW / vH, tAsp = tW / tH;
+                        if (vAsp > tAsp) { fH = tH; fW = fH * vAsp; } else { fW = tW; fH = fW / vAsp; }
+                    }
+                    el.setAttribute('rotation', fRot);
+                    el.setAttribute('width', fW);
+                    el.setAttribute('height', fH);
+                };
+                if (videoEl.readyState >= 1) applyFit(); else videoEl.addEventListener('loadedmetadata', applyFit);
+            }
+        });
+        
+        AFRAME.registerComponent('gesture-handler', {
+            schema: { enabled: {default: true}, minScale: {default: 0.05}, maxScale: {default: 10} },
+            init: function () {
+                this.handleTouchMove = this.handleTouchMove.bind(this);
+                this.handleTouchStart = this.handleTouchStart.bind(this);
+                this.handleTouchEnd = this.handleTouchEnd.bind(this);
+                this.el.sceneEl.addEventListener('touchstart', this.handleTouchStart);
+                this.el.sceneEl.addEventListener('touchmove', this.handleTouchMove, { passive: false });
+                this.el.sceneEl.addEventListener('touchend', this.handleTouchEnd);
+                this.state = {};
+            },
+            handleTouchStart: function (e) {
+                if (e.touches.length === 1) { this.state.oneTouch = true; this.state.twoTouch = false; this.state.lastTouchX = e.touches[0].clientX; this.state.lastTouchY = e.touches[0].clientY;
+                } else if (e.touches.length === 2) { this.state.oneTouch = false; this.state.twoTouch = true; this.state.initialDistance = this.getDistance(e.touches); this.state.initialScale = (this.el.getAttribute('scale') || {x:1}).x; }
+            },
+            handleTouchMove: function (e) {
+                if (!this.data.enabled || window.isVideoMode) return;
+                e.preventDefault();
+                let isTracked = false, parent = this.el;
+                while (parent && parent.tagName !== 'A-SCENE') { if (parent.hasAttribute('mindar-image-target')) { isTracked = parent.object3D.visible; break; } parent = parent.parentElement; }
+                if (!isTracked) return;
+                if (this.state.oneTouch && e.touches.length === 1) {
+                    const dX = e.touches[0].clientX - this.state.lastTouchX, dY = e.touches[0].clientY - this.state.lastTouchY;
+                    const rot = this.el.getAttribute('rotation');
+                    this.el.setAttribute('rotation', { x: rot.x + dY * 0.4, y: rot.y + dX * 0.4, z: rot.z });
+                    this.state.lastTouchX = e.touches[0].clientX; this.state.lastTouchY = e.touches[0].clientY;
+                } else if (this.state.twoTouch && e.touches.length === 2) {
+                    const factor = this.getDistance(e.touches) / this.state.initialDistance;
+                    let nS = Math.max(this.data.minScale, Math.min(this.data.maxScale, this.state.initialScale * factor));
+                    this.el.setAttribute('scale', {x: nS, y: nS, z: nS});
+                }
+            },
+            handleTouchEnd: function (e) { this.state.oneTouch = false; this.state.twoTouch = false; },
+            getDistance: function (touches) { return Math.sqrt(Math.pow(touches[0].clientX - touches[1].clientX, 2) + Math.pow(touches[0].clientY - touches[1].clientY, 2)); },
+            remove: function () { this.el.sceneEl.removeEventListener('touchstart', this.handleTouchStart); this.el.sceneEl.removeEventListener('touchmove', this.handleTouchMove); this.el.sceneEl.removeEventListener('touchend', this.handleTouchEnd); }
+        });
+    </script>
+
+    <script>
+        const pages = [{"mind":"https://raw.githubusercontent.com/inge7777/librosprueba/main/targets.mind","video":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/videos/pagina6/pagina6f.mp4","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/corazon.glb","scale":"1 1 1","pos":"0 0 0.02","rot":"0 0 0","vWidth":"1.0","vHeight":"1.414","targetIndex":0},{"mind":"https://raw.githubusercontent.com/inge7777/librosprueba/main/targets.mind","video":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/videos/pagina6/pagina6f.mp4","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/cabeza1.glb","scale":"1 1 1","pos":"0 0 0.02","rot":"0 0 0","vWidth":"1.0","vHeight":"1.414","targetIndex":1},{"mind":"https://raw.githubusercontent.com/inge7777/librosprueba/main/targets.mind","video":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/videos/pagina6/pagina6f.mp4","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/super-nova-o-proteina.glb","scale":"1 1 1","pos":"0 0 0.02","rot":"0 0 0","vWidth":"1.0","vHeight":"1.414","targetIndex":2},{"mind":"https://raw.githubusercontent.com/inge7777/librosprueba/main/targets.mind","video":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/videos/pagina6/pagina6f.mp4","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/mano-iz-protesis.glb","scale":"1 1 1","pos":"0 0 0.02","rot":"0 0 0","vWidth":"1.0","vHeight":"1.414","targetIndex":3},{"mind":"https://raw.githubusercontent.com/inge7777/librosprueba/main/targets.mind","video":"https://raw.githubusercontent.com/inge7777/libro1modelo3d/main/videos/pagina6/pagina6f.mp4","glb":"https://raw.githubusercontent.com/instructorandradedcc/propuesta-AR/main/asetss/modelss/protesis-mano-brazo.glb","scale":"1 1 1","pos":"0 0 0.02","rot":"0 0 0","vWidth":"1.0","vHeight":"1.414","targetIndex":4}];
+        window.isVideoMode = true;
+        let activeTargetIndex = null;
+        let guideTimeout = null;
+
+        function showGuideMessage(text, isTemp = true) {
+            const container = document.getElementById('hud-guide-container'), txt = document.getElementById('hud-guide');
+            if (!container || !txt) return;
+            if (guideTimeout) clearTimeout(guideTimeout);
+            txt.innerHTML = text; container.style.opacity = "1";
+            if (isTemp) guideTimeout = setTimeout(() => container.style.opacity = "0", 2500);
+        }
+
+        function addLog(msg, isErr = false) {
+            const c = document.getElementById('log-container'), d = document.createElement('div');
+            d.className = isErr ? "text-red-400 font-bold" : "text-emerald-400"; d.innerText = `> ${msg}`;
+            c.appendChild(d); c.scrollTop = c.scrollHeight;
+        }
+
+        // --- SISTEMA SMART BLOB CACHER (EVITA DESCARGAS DOBLES) ---
+        const assetsToVerify = [ { type: 'Marcador', url: 'https://raw.githubusercontent.com/inge7777/librosprueba/main/targets.mind', name: 'Marcador Global' } ];
+        pages.forEach((p, idx) => {
+            if (!assetsToVerify.find(a => a.url === p.video)) assetsToVerify.push({ type: 'Video', url: p.video, name: `Video Pág. ${idx + 1}` });
+            if (!assetsToVerify.find(a => a.url === p.glb)) assetsToVerify.push({ type: 'Modelo', url: p.glb, name: `Modelo 3D Pág. ${idx + 1}` });
+        });
+
+        const localBlobMap = {};
+
+        async function verifyAndCacheAssets() {
+            const fill = document.getElementById('progress-fill'), pLbl = document.getElementById('progress-percent'), lbl = document.getElementById('progress-label');
+            const total = assetsToVerify.length; let loaded = 0;
+
+            for (const asset of assetsToVerify) {
+                try {
+                    lbl.innerText = `Indexando a RAM: ${asset.name}...`;
+                    addLog(`Descargando ${asset.name}...`);
+                    const res = await fetch(asset.url, { cache: 'force-cache' });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const blob = await res.blob();
+                    localBlobMap[asset.url] = URL.createObjectURL(blob); // Magia: Convertimos a archivo RAM
+                    
+                    loaded++;
+                    const percent = Math.round((loaded / total) * 100);
+                    fill.style.width = `${percent}%`; pLbl.innerText = `${percent}%`;
+                    addLog(`✓ ${asset.name} empaquetado en Blob RAM.`);
+                } catch(err) {
+                    addLog(`❌ Error CORS/Conexión en ${asset.name}: ${err.message}`, true);
+                    lbl.innerText = 'Fallo de protección de red.'; return;
+                }
+            }
+            lbl.innerText = "¡Caché inteligente preparada!";
+            addLog("Visor listo: Tráfico de red desactivado.");
+            document.getElementById('start-btn').classList.remove('hidden');
+        }
+
+        function buildWebGLScene() {
+            // Inyectamos la escena solo cuando los blobs están listos. Reemplazamos URLs externas por BLOB RAM URLs.
+            let aHTML = '';
+            pages.forEach((p, i) => {
+                aHTML += `<video id="video-src-${i}" src="${localBlobMap[p.video]}" preload="auto" playsinline webkit-playsinline class="ar-video" crossOrigin="anonymous"></video>
+`;
+                aHTML += `<a-asset-item id="model-${i}" src="${localBlobMap[p.glb]}"></a-asset-item>
+`;
+            });
+
+            const sceneHTML = `
+                <a-scene id="scene" mindar-image="imageTargetSrc: ${localBlobMap['https://raw.githubusercontent.com/inge7777/librosprueba/main/targets.mind']}; filterMinCF:0.0001; filterBeta: 0.001; autoStart: false;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" loading-screen="enabled: false">
+                    <a-assets>${aHTML}</a-assets>
+                    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+                    <a-light type="ambient" color="#ffffff" intensity="1.5"></a-light>
+                    <a-light type="directional" color="#ffffff" intensity="1.0" position="-1 2 1"></a-light>
+                    
+        <a-entity mindar-image-target="targetIndex: 0" id="target-0" class="ar-target-anchor" data-index="0">
+            <a-video id="ar-video-0" src="#video-src-0" smart-video-fit="targetWidth: 1.0; targetHeight: 1.414" width="1.0" height="1.414" position="0 0 0.005" rotation="0 0 0" visible="true" animation__shrink="property: scale; to: 0 0 0; dur: 350; easing: easeInBack; startEvents: shrink"></a-video>
+            <a-gltf-model id="ar-model-0" src="#model-0" position="0 0 0.02" scale="0 0 0" rotation="0 0 0" visible="false" animation__reveal="property: scale; from: 0 0 0; to: 1 1 1; dur: 900; easing: easeOutBack; startEvents: reveal" gesture-handler></a-gltf-model>
+        </a-entity>
+        <a-entity mindar-image-target="targetIndex: 1" id="target-1" class="ar-target-anchor" data-index="1">
+            <a-video id="ar-video-1" src="#video-src-1" smart-video-fit="targetWidth: 1.0; targetHeight: 1.414" width="1.0" height="1.414" position="0 0 0.005" rotation="0 0 0" visible="true" animation__shrink="property: scale; to: 0 0 0; dur: 350; easing: easeInBack; startEvents: shrink"></a-video>
+            <a-gltf-model id="ar-model-1" src="#model-1" position="0 0 0.02" scale="0 0 0" rotation="0 0 0" visible="false" animation__reveal="property: scale; from: 0 0 0; to: 1 1 1; dur: 900; easing: easeOutBack; startEvents: reveal" gesture-handler></a-gltf-model>
+        </a-entity>
+        <a-entity mindar-image-target="targetIndex: 2" id="target-2" class="ar-target-anchor" data-index="2">
+            <a-video id="ar-video-2" src="#video-src-2" smart-video-fit="targetWidth: 1.0; targetHeight: 1.414" width="1.0" height="1.414" position="0 0 0.005" rotation="0 0 0" visible="true" animation__shrink="property: scale; to: 0 0 0; dur: 350; easing: easeInBack; startEvents: shrink"></a-video>
+            <a-gltf-model id="ar-model-2" src="#model-2" position="0 0 0.02" scale="0 0 0" rotation="0 0 0" visible="false" animation__reveal="property: scale; from: 0 0 0; to: 1 1 1; dur: 900; easing: easeOutBack; startEvents: reveal" gesture-handler></a-gltf-model>
+        </a-entity>
+        <a-entity mindar-image-target="targetIndex: 3" id="target-3" class="ar-target-anchor" data-index="3">
+            <a-video id="ar-video-3" src="#video-src-3" smart-video-fit="targetWidth: 1.0; targetHeight: 1.414" width="1.0" height="1.414" position="0 0 0.005" rotation="0 0 0" visible="true" animation__shrink="property: scale; to: 0 0 0; dur: 350; easing: easeInBack; startEvents: shrink"></a-video>
+            <a-gltf-model id="ar-model-3" src="#model-3" position="0 0 0.02" scale="0 0 0" rotation="0 0 0" visible="false" animation__reveal="property: scale; from: 0 0 0; to: 1 1 1; dur: 900; easing: easeOutBack; startEvents: reveal" gesture-handler></a-gltf-model>
+        </a-entity>
+        <a-entity mindar-image-target="targetIndex: 4" id="target-4" class="ar-target-anchor" data-index="4">
+            <a-video id="ar-video-4" src="#video-src-4" smart-video-fit="targetWidth: 1.0; targetHeight: 1.414" width="1.0" height="1.414" position="0 0 0.005" rotation="0 0 0" visible="true" animation__shrink="property: scale; to: 0 0 0; dur: 350; easing: easeInBack; startEvents: shrink"></a-video>
+            <a-gltf-model id="ar-model-4" src="#model-4" position="0 0 0.02" scale="0 0 0" rotation="0 0 0" visible="false" animation__reveal="property: scale; from: 0 0 0; to: 1 1 1; dur: 900; easing: easeOutBack; startEvents: reveal" gesture-handler></a-gltf-model>
+        </a-entity>
+                </a-scene>`;
+            
+            document.getElementById('scene-container').innerHTML = sceneHTML;
+            attachARListeners();
+        }
+
+        function attachARListeners() {
+            document.querySelectorAll('[mindar-image-target]').forEach((targetEl) => {
+                const pageIndex = parseInt(targetEl.getAttribute('data-index'));
+                const videoElement = document.getElementById(`video-src-${pageIndex}`);
+
+                targetEl.addEventListener('targetFound', () => {
+                    activeTargetIndex = pageIndex;
+                    document.getElementById('media-controls').classList.remove('hidden');
+                    document.getElementById('hud-status').innerText = `● PÁGINA ${pageIndex + 1}`;
+                    setupVideoMode();
+                });
+
+                targetEl.addEventListener('targetLost', () => {
+                    if (activeTargetIndex === pageIndex) {
+                        videoElement.pause();
+                        document.getElementById('media-controls').classList.add('hidden');
+                        document.getElementById('hud-status').innerText = "● ESCANEO ACTIVO";
+                        showGuideMessage("⚠️ Escanea una página para dar vida a la foto...", false);
+                        activeTargetIndex = null;
+                    }
+                });
+
+                videoElement.onended = () => setupModelMode();
+            });
+        }
+
+        function setupVideoMode() {
+            if (activeTargetIndex === null) return;
+            window.isVideoMode = true;
+            const vP = document.getElementById(`ar-video-${activeTargetIndex}`), mE = document.getElementById(`ar-model-${activeTargetIndex}`), vE = document.getElementById(`video-src-${activeTargetIndex}`);
+            vP.removeAttribute('animation__shrink'); vP.setAttribute('scale', '1 1 1'); vP.setAttribute('visible', 'true');
+            mE.setAttribute('visible', 'false'); mE.setAttribute('scale', '0 0 0');
+            vE.currentTime = 0; vE.play().catch(e=>console.log(e));
+            showGuideMessage(`🎥 Retrato en movimiento de Pág ${activeTargetIndex + 1}`, true);
+        }
+
+        function showModelMode() { setupModelMode(); }
+        function setupModelMode() {
+            if (activeTargetIndex === null) return;
+            window.isVideoMode = false;
+            const vP = document.getElementById(`ar-video-${activeTargetIndex}`), mE = document.getElementById(`ar-model-${activeTargetIndex}`), vE = document.getElementById(`video-src-${activeTargetIndex}`);
+            vE.pause();
+            vP.setAttribute('animation__shrink', 'property: scale; to: 0 0 0; dur: 350; easing: easeInBack; startEvents: shrink');
+            vP.emit('shrink');
+            setTimeout(() => { vP.setAttribute('visible', 'false'); mE.setAttribute('visible', 'true'); mE.emit('reveal'); }, 350);
+            showGuideMessage(`📦 Interactúa con el modelo 3D (Girar/Zoom)`, true);
+        }
+
+        function playVideoAgain() { setupVideoMode(); }
+
+        document.getElementById('start-btn').onclick = async () => {
+            const btn = document.getElementById('start-btn'); btn.disabled = true; btn.innerText = "ACCEDIENDO CÁMARA...";
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+                stream.getTracks().forEach(t => t.stop());
+            } catch (err) { return alert("Revisa permisos de cámara en tu navegador móvil."); }
+
+            document.getElementById('loader-overlay').style.display = 'none';
+            document.getElementById('ar-hud').classList.remove('hidden');
+
+            buildWebGLScene();
+
+            const sceneEl = document.getElementById('scene');
+            const startAR = () => { const sys = sceneEl.systems['mindar-image-system']; if(sys) sys.start(); };
+            if (sceneEl.hasLoaded) startAR(); else sceneEl.addEventListener('loaded', startAR);
+
+            pages.forEach((p, i) => {
+                const v = document.getElementById(`video-src-${i}`);
+                if (v) { v.muted = false; v.play().then(()=>v.pause()).catch(e=>{}); }
+            });
+        };
+
+        window.onload = verifyAndCacheAssets;
+    </script>
+</body>
+</html>
